@@ -10,7 +10,9 @@ Secrets (Streamlit Cloud: App settings > Secrets, or .streamlit/secrets.toml loc
 Keep the app PRIVATE: it uses the service-role key and can flatten your account. Never commit secrets.toml.
 Run schema.sql, schema_ai.sql, schema_assets.sql, schema_risk.sql, then schema_v2.sql in Supabase first.
 """
+import hmac
 import os
+import time
 
 import numpy as np
 import pandas as pd
@@ -33,6 +35,23 @@ URL, KEY = secret("SUPABASE_URL"), secret("SUPABASE_SERVICE_KEY")
 if not URL or not KEY:
     st.error("Set SUPABASE_URL and SUPABASE_SERVICE_KEY in the app's Secrets (or .streamlit/secrets.toml locally).")
     st.stop()
+
+# ------------------------------------------------------------------ access gate (this app holds the service-role key and can flatten accounts)
+PW = secret("DASHBOARD_PASSWORD")
+if not PW:
+    st.error("Set DASHBOARD_PASSWORD in the app's Secrets. This dashboard can close your positions, so it refuses to start without a password.")
+    st.stop()
+if not st.session_state.get("auth_ok"):
+    st.title("ApexAdaptive")
+    pw_in = st.text_input("Password", type="password")
+    if pw_in:
+        if hmac.compare_digest(pw_in.encode(), str(PW).encode()):
+            st.session_state["auth_ok"] = True
+            st.rerun()
+        time.sleep(1.5)                       # slows down guessing
+        st.error("Wrong password.")
+    st.stop()
+
 HEADERS = {"apikey": KEY, "Authorization": f"Bearer {KEY}"}
 MISSING = []          # tables that do not exist yet (schema not run)
 
@@ -202,6 +221,12 @@ def acct_label(lg):
 
 SEL = st.sidebar.selectbox("MT5 account", opts, format_func=acct_label)
 A = accounts[accounts["login"] == SEL].iloc[0] if SEL != 0 else None
+
+# The backend ORs this legacy global switch into EVERY account's kill flag. Make it impossible to forget.
+_rs = load("aa_risk_settings", live=True)
+if not _rs.empty and "kill_switch" in _rs and bool(_rs.iloc[0]["kill_switch"]):
+    st.error("GLOBAL kill switch is ON (table aa_risk_settings). It blocks new entries on ALL accounts. "
+             "Clear it in Supabase: update aa_risk_settings set kill_switch = false where id = 1;")
 
 
 def av(col, default=0.0):
@@ -842,4 +867,3 @@ with t_log:
         cols = ["opened_at", "symbol", "direction", "lots", "entry_price", "sl_price", "pnl", "r_multiple", "closed",
                 "sl_mult", "tp3_r", "adx_min", "adx", "bias_strength"]
         table(tr.sort_values("opened_at", ascending=False)[cols].head(100))
-
