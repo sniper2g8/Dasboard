@@ -889,7 +889,7 @@ with t_log:
     else:
         cols = ["opened_at", "symbol", "direction", "lots", "entry_price", "sl_price", "pnl", "r_multiple", "closed",
                 "sl_mult", "tp3_r", "adx_min", "adx", "bias_strength"]
-        table(tr.sort_values("opened_at", ascending=False)[cols].head(100))"""
+        table(tr.sort_values("opened_at", ascending=False)[cols].head(100))
 ApexAdaptive control center (Streamlit).
 
 One EA instance trades every asset you switch on here. The EA reports the MT5 account it runs on (login, server,
