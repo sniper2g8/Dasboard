@@ -152,7 +152,7 @@ D_COLS = ["id", "login", "created_at", "symbol", "mode", "model", "action", "sl_
 U_COLS = ["decision_id", "login", "symbol", "setup_time", "taken", "r_rule", "r_ai"]
 ACC_COLS = ["login", "label", "server", "company", "currency", "leverage", "trade_mode", "is_ftmo", "kind",
             "initial_balance", "balance", "equity", "day_start_balance", "peak_eod_balance", "last_seen", "halted",
-            "kill_switch", "flatten_token", "ai_mode", "daily_loss_pct", "max_loss_pct", "dd_type", "daily_buffer_pct",
+            "kill_switch", "flatten_token", "ai_mode", "account_type", "daily_loss_pct", "max_loss_pct", "dd_type", "daily_buffer_pct",
             "loss_buffer_pct", "max_open_risk_pct", "max_positions", "profit_target_pct", "account_size_override"]
 ST_COLS = ["login", "symbol", "ts", "state", "open_positions", "spread_pts", "sl_mult", "tp3_r", "adx_min", "last_adapt"]
 HOUR_COLS = ["asia_start_hour", "asia_end_hour", "trade_start_hour", "trade_end_hour", "force_close_hour"]
@@ -433,6 +433,15 @@ with t_ctl:
             new_m = st.selectbox("AI decision layer", modes, index=min(max(cur_m, 0), 2), key=f"ai_{SEL}")
             if modes.index(new_m) != cur_m and patch_account(ai_mode=modes.index(new_m)):
                 st.rerun()
+
+        # ---- account type: the only thing that can ever allow the EA to hedge
+        types = ["Prop firm account (hedging never allowed)", "Live account, own capital (a clean reversal may be hedged once only the runner is left)"]
+        cur_t = 1 if str(av("account_type")) == "live" else 0
+        new_t = st.selectbox("Account type", types, index=cur_t, key=f"atype_{SEL}")
+        if types.index(new_t) != cur_t and patch_account(account_type="live" if types.index(new_t) == 1 else "prop"):
+            st.rerun()
+        st.caption("Only FTMO is detected automatically. Every other prop firm account must stay on Prop. "
+                   "A hedge also needs a hedging-type MT5 account and the EA's InpHedge switch on.")
 
         # ---- assets
         st.subheader("Assets this EA trades")
